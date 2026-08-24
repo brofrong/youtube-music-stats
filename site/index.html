@@ -133,7 +133,7 @@ function renderBars(el,pairs,topN,linkArtist){
   pairs.slice(0,topN).forEach(([k,c],i)=>{
     let name,href='';
     if(linkArtist){name=k;const v=k.replace(/[&]/g,'');href=`https://music.youtube.com/search?q=${encodeURIComponent(v)}`}
-    else{name=k.split('||')[0];href=`https://music.youtube.com/watch?v=`;}
+    else{const t=k.split('||');name=t[0];href=`https://music.youtube.com/search?q=${encodeURIComponent(t[0]+' '+t[1])}`}
     const row=document.createElement('div');row.className='row';
     row.innerHTML=`<div class="rank">${i+1}</div><div class="name">${href?`<a target="_blank" href="${esc(href)}">`:''}${esc(name)}</a>`+
       `</div><div class="barwrap"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><div class="cnt">${c}</div>`;
