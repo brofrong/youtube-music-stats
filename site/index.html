@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Music Stats</title>
+<style>
+:root{
+  --bg:#0f0f13;--card:#1a1a21;--card2:#22222b;--text:#e8e8ee;--muted:#9a9aa8;
+  --accent:#ff4d6d;--accent2:#ff7a9c;--bar:linear-gradient(90deg,#ff4d6d,#ff9e64);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:2rem 1rem 4rem}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:2rem;margin-bottom:.25rem}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);margin-bottom:1.5rem}
+.controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem;align-items:center}
+button.pill{background:var(--card);color:var(--text);border:1px solid #33333f;border-radius:999px;padding:.5rem 1.1rem;cursor:pointer;font-size:.95rem;transition:.15s}
+button.pill:hover{background:var(--card2)}
+button.pill.active{background:var(--accent);border-color:var(--accent);font-weight:600}
+input[type=date]{background:var(--card);border:1px solid #33333f;color:var(--text);border-radius:8px;padding:.45rem .7rem;font-size:.95rem}
+select{background:var(--card);border:1px solid #33333f;color:var(--text);border-radius:8px;padding:.5rem .7rem;font-size:.95rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:2rem}
+.stat{background:var(--card);border-radius:14px;padding:1.1rem;text-align:center}
+.stat .num{font-size:1.9rem;font-weight:700;color:var(--accent2)}
+.stat .lbl{color:var(--muted);font-size:.85rem;margin-top:.2rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:1.5rem}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border-radius:16px;padding:1.3rem}
+.card h2{font-size:1.15rem;margin-bottom:1rem;color:var(--accent2)}
+.row{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem;font-size:.95rem}
+.row .rank{width:2rem;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
+.row .name{width:11rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.row .name a{color:var(--text);text-decoration:none}
+.row .name a:hover{color:var(--accent)}
+.barwrap{flex:1;background:#2a2a34;border-radius:6px;height:18px;position:relative}
+.bar{height:100%;background:var(--bar);border-radius:6px;min-width:2px}
+.cnt{width:3.2rem;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
+.chart{display:flex;align-items:flex-end;gap:6px;height:180px;margin-top:.5rem}
+.chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:.35rem;height:100%}
+.chart .bar2{width:100%;background:var(--bar);border-radius:6px 6px 0 0;transition:height .3s}
+.chart .lab{font-size:.68rem;color:var(--muted);white-space:nowrap}
+.chart .val{font-size:.72rem;color:var(--text)}
+footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎧 Моя <span>YouTube Music</span> статистика</h1>
+  <p class="sub" id="subtitle">Загрузка…</p>
+
+  <div class="controls">
+    <button class="pill active" data-period="all">Всё время</button>
+    <button class="pill" data-period="y">Этот год</button>
+    <button class="pill" data-period="m">Этот месяц</button>
+    <button class="pill" data-period="30">30 дней</button>
+    <button class="pill" data-period="custom">Свой период</button>
+    <span id="customRange" style="display:none;gap:.4rem;align-items:center">
+      <input type="date" id="from"> — <input type="date" id="to">
+      <button class="pill" id="applyCustom">OK</button>
+    </span>
+    <select id="topN">
+      <option value="10">Топ 10</option>
+      <option value="25" selected>Топ 25</option>
+      <option value="50">Топ 50</option>
+      <option value="100">Топ 100</option>
+    </select>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="stListens">—</div><div class="lbl">прослушиваний</div></div>
+    <div class="stat"><div class="num" id="stArtists">—</div><div class="lbl">исполнителей</div></div>
+    <div class="stat"><div class="num" id="stTracks">—</div><div class="lbl">уникальных треков</div></div>
+    <div class="stat"><div class="num" id="stDays">—</div><div class="lbl">дней со слушанием</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><h2>🏆 Топ исполнителей</h2><div id="artists"></div></div>
+    <div class="card"><h2>🎵 Топ треков</h2><div id="tracks"></div></div>
+    <div class="card" style="grid-column:1/-1"><h2>📅 Прослушивания по месяцам</h2><div class="chart" id="months"></div></div>
+  </div>
+
+  <footer>Собрано из Google Takeout · обновляется через GitHub Actions</footer>
+</div>
+
+<script>
+let DATA=[], range=null;
+const $=id=>document.getElementById(id);
+
+fetch('data.json').then(r=>r.json()).then(d=>{
+  DATA=d.map(e=>({...e,ts:e.date}));
+  DATA.sort((a,b)=>a.date.localeCompare(b.date));
+  const min=DATA[0].date,max=DATA[DATA.length-1].date;
+  $('from').min=$('to').min=min; $('from').max=$('to').max=max;
+  $('from').value=min; $('to').value=max;
+  render();
+});
+
+function filtered(){
+  if(!range) return DATA;
+  return DATA.filter(e=>e.date>=range[0]&&e.date<=range[1]);
+}
+function fmtDate(d){return d.split('-').reverse().join('.')}
+function plural(n,a){return n+' '+a[ (n%10==1&&n%100!=11)?0:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?1:2 ]}
+
+function render(){
+  if(!DATA.length) return;
+  const list=filtered();
+  const min=list.length?list[0].date:'', max=list.length?list[list.length-1].date:'';
+  $('subtitle').textContent = list.length
+    ? `${fmtDate(min)} — ${fmtDate(max)}`
+    : 'Нет данных за выбранный период';
+  $('stListens').textContent=list.length.toLocaleString('ru');
+  $('stArtists').textContent=new Set(list.map(e=>e.artist)).size.toLocaleString('ru');
+  $('stTracks').textContent=new Set(list.map(e=>e.title+'|'+e.artist)).size.toLocaleString('ru');
+  $('stDays').textContent=new Set(list.map(e=>e.date)).size.toLocaleString('ru');
+
+  const topN=+$('topN').value;
+  renderBars($('artists'), count(list,e=>e.artist), topN, true);
+  renderBars($('tracks'), count(list,e=>`${e.title}||${e.artist}`), topN, false);
+  renderMonths(list);
+}
+function count(list,keyFn){
+  const m=new Map();
+  for(const e of list){const k=keyFn(e);m.set(k,(m.get(k)||0)+1)}
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function renderBars(el,pairs,topN,linkArtist){
+  el.innerHTML='';
+  const max=pairs.length?pairs[0][1]:1;
+  pairs.slice(0,topN).forEach(([k,c],i)=>{
+    let name,href='';
+    if(linkArtist){name=k;const v=k.replace(/[&]/g,'');href=`https://music.youtube.com/search?q=${encodeURIComponent(v)}`}
+    else{name=k.split('||')[0];href=`https://music.youtube.com/watch?v=`;}
+    const row=document.createElement('div');row.className='row';
+    row.innerHTML=`<div class="rank">${i+1}</div><div class="name">${href?`<a target="_blank" href="${esc(href)}">`:''}${esc(name)}</a>`+
+      `</div><div class="barwrap"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><div class="cnt">${c}</div>`;
+    el.appendChild(row);
+  });
+  if(!pairs.length)el.innerHTML='<p style="color:var(--muted)">Пусто 🙁</p>';
+}
+function renderMonths(list){
+  const m=count(list,e=>e.date.slice(0,7)).sort();
+  const el=$('months');el.innerHTML='';
+  const max=m.length?Math.max(...m.map(x=>x[1])):1;
+  const names=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  m.forEach(([k,c])=>{
+    const col=document.createElement('div');col.className='col';
+    col.innerHTML=`<div class="val">${c}</div><div class="bar2" style="height:${Math.max(c/max*100,2)}%"></div>`+
+      `<div class="lab">${names[+k.slice(5)]} ${k.slice(2,4)}</div>`;
+    el.appendChild(col);
+  });
+}
+
+document.querySelectorAll('.pill[data-period]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.pill[data-period]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const p=b.dataset.period;range=null;
+  $('customRange').style.display=p==='custom'?'inline-flex':'none';
+  if(p==='all'){}
+  else if(p==='y'){const y=new Date().getFullYear();range=[`${y}-01-01`,`${y}-12-31`]}
+  else if(p==='m'){const d=new Date();range=[d.toISOString().slice(0,8)+'01',d.toISOString().slice(0,10)]}
+  else if(p==='30'){const t=new Date(),s=new Date(Date.now()-29*864e5);
+    range=[s.toISOString().slice(0,10),t.toISOString().slice(0,10)]}
+  else if(p==='custom'){range=[$('from').value,$('to').value]}
+  render();
+});
+$('applyCustom').onclick=()=>{range=[$('from').value||'0000',$('to').value||'9999'];render()};
+$('topN').onchange=render;
+</script>
+</body>
+</html>
