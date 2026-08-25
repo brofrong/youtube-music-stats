@@ -27,7 +27,7 @@ select{background:var(--card);border:1px solid #33333f;color:var(--text);border-
 .stat .lbl{color:var(--muted);font-size:.85rem;margin-top:.2rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:1.5rem}
 @media(max-width:560px){.grid{grid-template-columns:1fr}}
-.card{background:var(--card);border-radius:16px;padding:1.3rem}
+.card{background:var(--card);border-radius:16px;padding:1.3rem;margin-bottom:1.5rem}
 .card h2{font-size:1.15rem;margin-bottom:1rem;color:var(--accent2)}
 .row{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem;font-size:.95rem}
 .row .rank{width:2rem;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
@@ -42,6 +42,15 @@ select{background:var(--card);border:1px solid #33333f;color:var(--text);border-
 .chart .bar2{width:100%;background:var(--bar);border-radius:6px 6px 0 0;transition:height .3s}
 .chart .lab{font-size:.68rem;color:var(--muted);white-space:nowrap}
 .chart .val{font-size:.72rem;color:var(--text)}
+/* GitHub-style activity calendar */
+.calwrap{overflow-x:auto;padding-bottom:.5rem}
+.calendar{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,13px);gap:3px;width:max-content}
+.cell{width:13px;height:13px;border-radius:3px;background:#26262e}
+.cell.l1{background:#4a1930}.cell.l2{background:#7c2445}.cell.l3{background:#b23260}.cell.l4{background:#ff4d6d}
+.monthsrow{display:grid;grid-template-rows:none;width:max-content;font-size:.7rem;color:var(--muted);margin-bottom:4px;gap:3px}
+.legend{display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:.6rem;font-size:.75rem;color:var(--muted)}
+.legend .cell{width:11px;height:11px}
+.yearbtns{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0}
 footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
 </style>
 </head>
@@ -52,6 +61,7 @@ footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
 
   <div class="controls">
     <button class="pill active" data-period="all">Всё время</button>
+    <span id="yearBtns" class="yearbtns"></span>
     <button class="pill" data-period="y">Этот год</button>
     <button class="pill" data-period="m">Этот месяц</button>
     <button class="pill" data-period="30">30 дней</button>
@@ -60,6 +70,7 @@ footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
       <input type="date" id="from"> — <input type="date" id="to">
       <button class="pill" id="applyCustom">OK</button>
     </span>
+    <button class="pill" id="musicToggle">🎵 Только музыка</button>
     <select id="topN">
       <option value="10">Топ 10</option>
       <option value="25" selected>Топ 25</option>
@@ -75,41 +86,79 @@ footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
     <div class="stat"><div class="num" id="stDays">—</div><div class="lbl">дней со слушанием</div></div>
   </div>
 
+  <div class="card">
+    <h2>🔥 Активность по дням <span style="font-size:.75rem;color:var(--muted)">(кликни на плитку — период за этот день)</span></h2>
+    <div class="calwrap"><div id="calendar"></div></div>
+    <div class="legend">меньше
+      <div class="cell"></div><div class="cell l1"></div><div class="cell l2"></div><div class="cell l3"></div><div class="cell l4"></div>
+      больше
+    </div>
+  </div>
+
   <div class="grid">
     <div class="card"><h2>🏆 Топ исполнителей</h2><div id="artists"></div></div>
     <div class="card"><h2>🎵 Топ треков</h2><div id="tracks"></div></div>
     <div class="card" style="grid-column:1/-1"><h2>📅 Прослушивания по месяцам</h2><div class="chart" id="months"></div></div>
   </div>
 
-  <footer>Собрано из Google Takeout · обновляется через GitHub Actions</footer>
+  <footer>Собрано из Google Takeout + MyActivity · обновляется через GitHub Actions</footer>
 </div>
 
 <script>
-let DATA=[], range=null;
+let DATA=[], range=null, musicOnly=false;
 const $=id=>document.getElementById(id);
 
 fetch('data.json').then(r=>r.json()).then(d=>{
-  DATA=d.map(e=>({...e,ts:e.date}));
+  DATA=d.map(e=>({...e,m:e.m===1||e.m===true}));
   DATA.sort((a,b)=>a.date.localeCompare(b.date));
   const min=DATA[0].date,max=DATA[DATA.length-1].date;
   $('from').min=$('to').min=min; $('from').max=$('to').max=max;
   $('from').value=min; $('to').value=max;
+  buildYearButtons();
   render();
 });
 
+function buildYearButtons(){
+  const years=[...new Set(DATA.map(e=>e.date.slice(0,4)))];
+  const box=$('yearBtns');
+  years.forEach(y=>{
+    const b=document.createElement('button');
+    b.className='pill'; b.textContent=y; b.dataset.period='year'+y;
+    box.appendChild(b);
+  });
+  document.querySelectorAll('.pill[data-period]').forEach(b=>b.onclick=()=>periodClick(b));
+}
+
+function periodClick(b){
+  document.querySelectorAll('.pill[data-period]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const p=b.dataset.period;range=null;
+  $('customRange').style.display=p==='custom'?'inline-flex':'none';
+  if(p==='all'){}
+  else if(p==='y'){const y=new Date().getFullYear();range=[`${y}-01-01`,`${y}-12-31`]}
+  else if(p.startsWith('year')){const y=p.slice(4);range=[`${y}-01-01`,`${y}-12-31`]}
+  else if(p==='m'){const d=new Date();range=[d.toISOString().slice(0,8)+'01',d.toISOString().slice(0,10)]}
+  else if(p==='30'){const t=new Date(),s=new Date(Date.now()-29*864e5);
+    range=[s.toISOString().slice(0,10),t.toISOString().slice(0,10)]}
+  else if(p==='custom'){range=[$('from').value,$('to').value]}
+  render();
+}
+
 function filtered(){
-  if(!range) return DATA;
-  return DATA.filter(e=>e.date>=range[0]&&e.date<=range[1]);
+  let list = DATA;
+  if(musicOnly) list = list.filter(e=>e.m);
+  if(!range) return list;
+  return list.filter(e=>e.date>=range[0]&&e.date<=range[1]);
 }
 function fmtDate(d){return d.split('-').reverse().join('.')}
-function plural(n,a){return n+' '+a[ (n%10==1&&n%100!=11)?0:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?1:2 ]}
 
 function render(){
   if(!DATA.length) return;
   const list=filtered();
   const min=list.length?list[0].date:'', max=list.length?list[list.length-1].date:'';
+  const scope = musicOnly ? ' · только музыка' : '';
   $('subtitle').textContent = list.length
-    ? `${fmtDate(min)} — ${fmtDate(max)}`
+    ? `${fmtDate(min)} — ${fmtDate(max)}${scope}`
     : 'Нет данных за выбранный период';
   $('stListens').textContent=list.length.toLocaleString('ru');
   $('stArtists').textContent=new Set(list.map(e=>e.artist)).size.toLocaleString('ru');
@@ -120,6 +169,7 @@ function render(){
   renderBars($('artists'), count(list,e=>e.artist), topN, true);
   renderBars($('tracks'), count(list,e=>`${e.title}||${e.artist}`), topN, false);
   renderMonths(list);
+  renderCalendar(list);
 }
 function count(list,keyFn){
   const m=new Map();
@@ -132,7 +182,7 @@ function renderBars(el,pairs,topN,linkArtist){
   const max=pairs.length?pairs[0][1]:1;
   pairs.slice(0,topN).forEach(([k,c],i)=>{
     let name,href='';
-    if(linkArtist){name=k;const v=k.replace(/[&]/g,'');href=`https://music.youtube.com/search?q=${encodeURIComponent(v)}`}
+    if(linkArtist){name=k;href=`https://music.youtube.com/search?q=${encodeURIComponent(k)}`}
     else{const t=k.split('||');name=t[0];href=`https://music.youtube.com/search?q=${encodeURIComponent(t[0]+' '+t[1])}`}
     const row=document.createElement('div');row.className='row';
     row.innerHTML=`<div class="rank">${i+1}</div><div class="name">${href?`<a target="_blank" href="${esc(href)}">`:''}${esc(name)}</a>`+
@@ -154,20 +204,52 @@ function renderMonths(list){
   });
 }
 
-document.querySelectorAll('.pill[data-period]').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.pill[data-period]').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');
-  const p=b.dataset.period;range=null;
-  $('customRange').style.display=p==='custom'?'inline-flex':'none';
-  if(p==='all'){}
-  else if(p==='y'){const y=new Date().getFullYear();range=[`${y}-01-01`,`${y}-12-31`]}
-  else if(p==='m'){const d=new Date();range=[d.toISOString().slice(0,8)+'01',d.toISOString().slice(0,10)]}
-  else if(p==='30'){const t=new Date(),s=new Date(Date.now()-29*864e5);
-    range=[s.toISOString().slice(0,10),t.toISOString().slice(0,10)]}
-  else if(p==='custom'){range=[$('from').value,$('to').value]}
-  render();
+/* GitHub-style calendar */
+function renderCalendar(list){
+  const perDay=new Map();
+  for(const e of list) perDay.set(e.date,(perDay.get(e.date)||0)+1);
+  const el=$('calendar'); el.innerHTML='';
+  el.className='calendar';
+  if(!perDay.size){el.innerHTML='<p style="color:var(--muted)">Пусто</p>';return}
+  const days=[...perDay.keys()].sort();
+  const minD=new Date(days[0]+'T00:00:00'), maxD=new Date(days[days.length-1]+'T00:00:00');
+  // align start to Sunday (weeks as columns)
+  minD.setDate(minD.getDate()-minD.getDay());
+  const max=Math.max(...perDay.values());
+  const lvl=c=>c===0?'':c<=Math.ceil(max*0.25)?'l1':c<=Math.ceil(max*0.5)?'l2':c<=Math.ceil(max*0.75)?'l3':'l4';
+  const d=new Date(minD);
+  while(d<=maxD){
+    const iso=d.toISOString().slice(0,10);
+    const c=perDay.get(iso)||0;
+    const cell=document.createElement('div');
+    cell.className='cell '+(c?lvl(c):'');
+    cell.title=`${fmtDate(iso)}: ${c} прослушивани${c===1?'е':c<5?'я':'й'}`;
+    cell.style.cursor=c?'pointer':'default';
+    if(c){
+      cell.onclick=()=>{
+        range=[iso,iso];
+        document.querySelectorAll('.pill[data-period]').forEach(x=>x.classList.remove('active'));
+        $('customRange').style.display='inline-flex';
+        $('from').value=iso;$('to').value=iso;
+        window.scrollTo({top:0,behavior:'smooth'});
+        render();
+      };
+    }
+    el.appendChild(cell);
+    d.setDate(d.getDate()+1);
+  }
+}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.pill[data-period]');
+  if(b) periodClick(b);
 });
 $('applyCustom').onclick=()=>{range=[$('from').value||'0000',$('to').value||'9999'];render()};
+$('musicToggle').onclick=()=>{
+  musicOnly=!musicOnly;
+  $('musicToggle').classList.toggle('active',musicOnly);
+  render();
+};
 $('topN').onchange=render;
 </script>
 </body>
