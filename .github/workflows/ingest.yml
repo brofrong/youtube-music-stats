@@ -1,0 +1,98 @@
+name: Ingest Takeout
+
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 1st of each month 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      takeout_url:
+        description: "Direct Takeout URL (optional, overrides Drive)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Fetch Takeout from Drive or URL
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          TAKEOUT_URL: ${{ inputs.takeout_url }}
+        run: |
+          if [ -n "$TAKEOUT_URL" ]; then
+            echo "Using direct URL"
+          elif [ -z "$GOOGLE_REFRESH_TOKEN" ]; then
+            echo "::warning::No GOOGLE_REFRESH_TOKEN, skipping fetch (manual dispatch with takeout_url still works)"
+            exit 0
+          fi
+          bun run scripts/fetch.ts
+
+      - name: Parse Takeout (incremental)
+        run: |
+          if [ -f "Takeout.zip" ]; then
+            echo "Found Takeout.zip"
+            bun run scripts/parse.ts --input Takeout.zip
+          elif [ -d "takeout" ]; then
+            bun run scripts/parse.ts --input takeout
+          else
+            echo "No Takeout.zip or takeout/ found, trying auto-detect"
+            bun run scripts/parse.ts
+          fi
+          # cleanup zip to not commit
+          rm -f Takeout.zip
+          rm -rf takeout
+
+      - name: Commit updated data.json
+        run: |
+          if git diff --quiet site/data.json; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add site/data.json site/.last-takeout-id || true
+          git commit -m "chore: ingest takeout $(date -u +%Y-%m-%d)"
+          git push
+
+  deploy:
+    needs: ingest
+    if: always() && (needs.ingest.result == 'success' || needs.ingest.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

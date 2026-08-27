@@ -1,0 +1,16 @@
+{
+  "name": "youtube-music-stats",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "parse": "bun run scripts/parse.ts",
+    "fetch": "bun run scripts/fetch.ts",
+    "migrate": "bun run scripts/migrate.ts",
+    "dev": "bun --hot index.ts",
+    "build": "bun run scripts/parse.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^7.0.2"
+  }
+}

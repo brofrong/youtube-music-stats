@@ -31,7 +31,10 @@ select{background:var(--card);border:1px solid #33333f;color:var(--text);border-
 .card h2{font-size:1.15rem;margin-bottom:1rem;color:var(--accent2)}
 .row{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem;font-size:.95rem}
 .row .rank{width:2rem;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
-.row .name{width:11rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.row .name{width:13rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.row .name.track{white-space:normal;line-height:1.25}
+.row .name.track .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.row .name.track .artist{font-size:.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
 .row .name a{color:var(--text);text-decoration:none}
 .row .name a:hover{color:var(--accent)}
 .barwrap{flex:1;background:#2a2a34;border-radius:6px;height:18px;position:relative}
@@ -42,7 +45,6 @@ select{background:var(--card);border:1px solid #33333f;color:var(--text);border-
 .chart .bar2{width:100%;background:var(--bar);border-radius:6px 6px 0 0;transition:height .3s}
 .chart .lab{font-size:.68rem;color:var(--muted);white-space:nowrap}
 .chart .val{font-size:.72rem;color:var(--text)}
-/* GitHub-style activity calendar */
 .calwrap{overflow-x:auto;padding-bottom:.5rem}
 .calendar{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,13px);gap:3px;width:max-content}
 .cell{width:13px;height:13px;border-radius:3px;background:#26262e}
@@ -70,7 +72,6 @@ footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
       <input type="date" id="from"> — <input type="date" id="to">
       <button class="pill" id="applyCustom">OK</button>
     </span>
-    <button class="pill" id="musicToggle">🎵 Только музыка</button>
     <select id="topN">
       <option value="10">Топ 10</option>
       <option value="25" selected>Топ 25</option>
@@ -101,16 +102,21 @@ footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
     <div class="card" style="grid-column:1/-1"><h2>📅 Прослушивания по месяцам</h2><div class="chart" id="months"></div></div>
   </div>
 
-  <footer>Собрано из Google Takeout + MyActivity · обновляется через GitHub Actions</footer>
+  <footer>Собрано из Google Takeout (YouTube Music) · обновляется ежемесячно через GitHub Actions</footer>
 </div>
 
 <script>
-let DATA=[], range=null, musicOnly=false;
+let DATA=[], range=null;
 const $=id=>document.getElementById(id);
 
 fetch('data.json').then(r=>r.json()).then(d=>{
-  DATA=d.map(e=>({...e,m:e.m===1||e.m===true}));
-  DATA.sort((a,b)=>a.date.localeCompare(b.date));
+  // data is [{title, artist, date, ts, video, token}] — only music
+  DATA=d;
+  DATA.sort((a,b)=>a.ts.localeCompare(b.ts) || a.date.localeCompare(b.date));
+  if(!DATA.length){
+    $('subtitle').textContent='Нет данных';
+    return;
+  }
   const min=DATA[0].date,max=DATA[DATA.length-1].date;
   $('from').min=$('to').min=min; $('from').max=$('to').max=max;
   $('from').value=min; $('to').value=max;
@@ -119,7 +125,7 @@ fetch('data.json').then(r=>r.json()).then(d=>{
 });
 
 function buildYearButtons(){
-  const years=[...new Set(DATA.map(e=>e.date.slice(0,4)))];
+  const years=[...new Set(DATA.map(e=>e.date.slice(0,4)))].sort();
   const box=$('yearBtns');
   years.forEach(y=>{
     const b=document.createElement('button');
@@ -145,20 +151,22 @@ function periodClick(b){
 }
 
 function filtered(){
-  let list = DATA;
-  if(musicOnly) list = list.filter(e=>e.m);
-  if(!range) return list;
-  return list.filter(e=>e.date>=range[0]&&e.date<=range[1]);
+  if(!range) return DATA;
+  return DATA.filter(e=>e.date>=range[0]&&e.date<=range[1]);
 }
 function fmtDate(d){return d.split('-').reverse().join('.')}
 
 function render(){
   if(!DATA.length) return;
   const list=filtered();
-  const min=list.length?list[0].date:'', max=list.length?list[list.length-1].date:'';
-  const scope = musicOnly ? ' · только музыка' : '';
+  // list is sorted by ts, but for subtitle use min/max of filtered
+  let min='',max='';
+  if(list.length){
+    const sorted=[...list].sort((a,b)=>a.date.localeCompare(b.date));
+    min=sorted[0].date; max=sorted[sorted.length-1].date;
+  }
   $('subtitle').textContent = list.length
-    ? `${fmtDate(min)} — ${fmtDate(max)}${scope}`
+    ? `${fmtDate(min)} — ${fmtDate(max)} · ${list.length.toLocaleString('ru')} прослушиваний`
     : 'Нет данных за выбранный период';
   $('stListens').textContent=list.length.toLocaleString('ru');
   $('stArtists').textContent=new Set(list.map(e=>e.artist)).size.toLocaleString('ru');
@@ -181,13 +189,22 @@ function renderBars(el,pairs,topN,linkArtist){
   el.innerHTML='';
   const max=pairs.length?pairs[0][1]:1;
   pairs.slice(0,topN).forEach(([k,c],i)=>{
-    let name,href='';
-    if(linkArtist){name=k;href=`https://music.youtube.com/search?q=${encodeURIComponent(k)}`}
-    else{const t=k.split('||');name=t[0];href=`https://music.youtube.com/search?q=${encodeURIComponent(t[0]+' '+t[1])}`}
-    const row=document.createElement('div');row.className='row';
-    row.innerHTML=`<div class="rank">${i+1}</div><div class="name">${href?`<a target="_blank" href="${esc(href)}">`:''}${esc(name)}</a>`+
-      `</div><div class="barwrap"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><div class="cnt">${c}</div>`;
-    el.appendChild(row);
+    let nameHtml='', href='';
+    if(linkArtist){
+      const name=k;
+      href=`https://music.youtube.com/search?q=${encodeURIComponent(name)}`;
+      nameHtml=`<a target="_blank" href="${esc(href)}">${esc(name)}</a>`;
+      const row=document.createElement('div');row.className='row';
+      row.innerHTML=`<div class="rank">${i+1}</div><div class="name">${nameHtml}</div><div class="barwrap"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><div class="cnt">${c}</div>`;
+      el.appendChild(row);
+    } else {
+      const [title, artist]=k.split('||');
+      href=`https://music.youtube.com/search?q=${encodeURIComponent(title+' '+artist)}`;
+      nameHtml=`<a target="_blank" href="${esc(href)}"><span class="title">${esc(title)}</span><span class="artist">${esc(artist)}</span></a>`;
+      const row=document.createElement('div');row.className='row';
+      row.innerHTML=`<div class="rank">${i+1}</div><div class="name track">${nameHtml}</div><div class="barwrap"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><div class="cnt">${c}</div>`;
+      el.appendChild(row);
+    }
   });
   if(!pairs.length)el.innerHTML='<p style="color:var(--muted)">Пусто 🙁</p>';
 }
@@ -204,7 +221,6 @@ function renderMonths(list){
   });
 }
 
-/* GitHub-style calendar */
 function renderCalendar(list){
   const perDay=new Map();
   for(const e of list) perDay.set(e.date,(perDay.get(e.date)||0)+1);
@@ -213,7 +229,6 @@ function renderCalendar(list){
   if(!perDay.size){el.innerHTML='<p style="color:var(--muted)">Пусто</p>';return}
   const days=[...perDay.keys()].sort();
   const minD=new Date(days[0]+'T00:00:00'), maxD=new Date(days[days.length-1]+'T00:00:00');
-  // align start to Sunday (weeks as columns)
   minD.setDate(minD.getDate()-minD.getDay());
   const max=Math.max(...perDay.values());
   const lvl=c=>c===0?'':c<=Math.ceil(max*0.25)?'l1':c<=Math.ceil(max*0.5)?'l2':c<=Math.ceil(max*0.75)?'l3':'l4';
@@ -245,11 +260,6 @@ document.addEventListener('click',e=>{
   if(b) periodClick(b);
 });
 $('applyCustom').onclick=()=>{range=[$('from').value||'0000',$('to').value||'9999'];render()};
-$('musicToggle').onclick=()=>{
-  musicOnly=!musicOnly;
-  $('musicToggle').classList.toggle('active',musicOnly);
-  render();
-};
 $('topN').onchange=render;
 </script>
 </body>
