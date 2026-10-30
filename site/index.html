@@ -3,270 +3,510 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YouTube Music Stats</title>
+<title>YTM-FM · Хит-парад</title>
 <style>
 :root{
-  --bg:#0f0f13;--card:#1a1a21;--card2:#22222b;--text:#e8e8ee;--muted:#9a9aa8;
-  --accent:#ff4d6d;--accent2:#ff7a9c;--bar:linear-gradient(90deg,#ff4d6d,#ff9e64);
+  --bg:#17110d;--deck:#211913;--panel:#0d0a07;--card:#1f1711;--line:#3a2c21;--line2:#2a1f17;
+  --text:#f1e4cc;--muted:#b89a74;--dim:#8d7a62;--amber:#ffb000;--amber-d:#a07a3c;--hot:#ff5a3c;--green:#7fd17a;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:2rem 1rem 4rem}
-.wrap{max-width:1100px;margin:0 auto}
-h1{font-size:2rem;margin-bottom:.25rem}
-h1 span{color:var(--accent)}
-.sub{color:var(--muted);margin-bottom:1.5rem}
-.controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem;align-items:center}
-button.pill{background:var(--card);color:var(--text);border:1px solid #33333f;border-radius:999px;padding:.5rem 1.1rem;cursor:pointer;font-size:.95rem;transition:.15s}
-button.pill:hover{background:var(--card2)}
-button.pill.active{background:var(--accent);border-color:var(--accent);font-weight:600}
-input[type=date]{background:var(--card);border:1px solid #33333f;color:var(--text);border-radius:8px;padding:.45rem .7rem;font-size:.95rem}
-select{background:var(--card);border:1px solid #33333f;color:var(--text);border-radius:8px;padding:.5rem .7rem;font-size:.95rem}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:2rem}
-.stat{background:var(--card);border-radius:14px;padding:1.1rem;text-align:center}
-.stat .num{font-size:1.9rem;font-weight:700;color:var(--accent2)}
-.stat .lbl{color:var(--muted);font-size:.85rem;margin-top:.2rem}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:1.5rem}
-@media(max-width:560px){.grid{grid-template-columns:1fr}}
-.card{background:var(--card);border-radius:16px;padding:1.3rem;margin-bottom:1.5rem}
-.card h2{font-size:1.15rem;margin-bottom:1rem;color:var(--accent2)}
-.row{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem;font-size:.95rem}
-.row .rank{width:2rem;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
-.row .name{width:13rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
-.row .name.track{white-space:normal;line-height:1.25}
-.row .name.track .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
-.row .name.track .artist{font-size:.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
-.row .name a{color:var(--text);text-decoration:none}
-.row .name a:hover{color:var(--accent)}
-.barwrap{flex:1;background:#2a2a34;border-radius:6px;height:18px;position:relative}
-.bar{height:100%;background:var(--bar);border-radius:6px;min-width:2px}
-.cnt{width:3.2rem;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
-.chart{display:flex;align-items:flex-end;gap:6px;height:180px;margin-top:.5rem}
-.chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:.35rem;height:100%}
-.chart .bar2{width:100%;background:var(--bar);border-radius:6px 6px 0 0;transition:height .3s}
-.chart .lab{font-size:.68rem;color:var(--muted);white-space:nowrap}
-.chart .val{font-size:.72rem;color:var(--text)}
-.calwrap{overflow-x:auto;padding-bottom:.5rem}
-.calendar{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,13px);gap:3px;width:max-content}
-.cell{width:13px;height:13px;border-radius:3px;background:#26262e}
-.cell.l1{background:#4a1930}.cell.l2{background:#7c2445}.cell.l3{background:#b23260}.cell.l4{background:#ff4d6d}
-.monthsrow{display:grid;grid-template-rows:none;width:max-content;font-size:.7rem;color:var(--muted);margin-bottom:4px;gap:3px}
-.legend{display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:.6rem;font-size:.75rem;color:var(--muted)}
-.legend .cell{width:11px;height:11px}
-.yearbtns{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0}
-footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;padding:24px 14px 60px}
+body:before{content:"";position:fixed;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);pointer-events:none;z-index:5}
+.wrap{max-width:1080px;margin:0 auto}
+a{color:inherit;text-decoration:none}
+a:hover{color:var(--amber)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+.deck{background:linear-gradient(#2a1f17,#1f1711);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:inset 0 1px 0 #4a382a}
+.row1{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-size:11px;letter-spacing:.3em;color:var(--muted);white-space:nowrap}
+.brand b{color:var(--amber);letter-spacing:.1em;font-size:15px}
+.knobs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.knob{font-size:11px;padding:6px 10px;border:1px solid #4a382a;border-radius:4px;color:var(--muted);background:#1a130e;transition:.15s}
+.knob:hover{color:var(--text);border-color:var(--amber-d)}
+.knob.on{color:var(--bg);background:var(--amber);border-color:var(--amber);box-shadow:0 0 12px #ffb00080}
+.knobs .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.custom{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px;color:var(--muted)}
+.custom[hidden]{display:none}
+.custom input{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 8px;font:inherit;color-scheme:dark}
+
+.lcd{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center}
+.num{font-size:72px;line-height:1;color:var(--amber);text-shadow:0 0 18px #ffb00066;letter-spacing:-.02em}
+.num small{display:block;font-size:10px;letter-spacing:.2em;color:var(--amber-d);text-shadow:none;margin-top:8px}
+.ticker{font-size:13px;line-height:1.8;min-width:0}
+.ticker div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ticker b{color:var(--amber);font-weight:500}
+.ticker i{font-style:normal;color:var(--dim)}
+.vu{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.vu div{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:10px;color:var(--amber-d);letter-spacing:.1em}
+.vu b{display:block;font-size:24px;color:var(--text);font-weight:500;letter-spacing:0;margin-bottom:2px}
+.vu .down{color:var(--hot)}.vu .up{color:var(--green)}
+
+h3{font-size:11px;letter-spacing:.3em;color:var(--amber);margin:26px 0 12px;font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h3 .hint{letter-spacing:.05em;color:var(--dim);font-size:11px}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:1.35fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2e{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.card .t{font-size:10px;letter-spacing:.2em;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.card .cap{font-size:11px;color:var(--dim);margin-bottom:6px}
+.li{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px dashed #33271d}
+.li:last-child{border:0}
+.li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.li .v{color:var(--amber-d);white-space:nowrap}
+.li .v.up{color:var(--green)}
+.li .v s{color:var(--dim)}
+.empty{font-size:12px;color:var(--dim);padding:8px 0;line-height:1.5}
+
+.ctl{display:flex;gap:6px}
+.ctl button{font-size:10px;letter-spacing:.15em;padding:4px 8px;border:1px solid var(--line);border-radius:4px;color:var(--muted)}
+.ctl button.on{color:var(--amber);border-color:var(--amber-d)}
+.hp .r{display:grid;grid-template-columns:30px 46px minmax(0,1fr) 150px 34px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.hp .n{font-size:20px;color:var(--amber)}
+.hp .nm a{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hp .nm small{display:block;font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hp .c{text-align:right;color:var(--muted)}
+.tag{font-size:10px;padding:2px 4px;border-radius:3px;text-align:center}
+.t-up{color:var(--green);border:1px solid #2f5a2c}
+.t-down{color:var(--hot);border:1px solid #5a2c22}
+.t-new{color:var(--bg);background:var(--hot)}
+.t-re{color:var(--amber);border:1px solid var(--amber-d)}
+.t-eq{color:var(--amber-d);border:1px solid var(--line)}
+.seg{display:flex;gap:2px}
+.seg i{flex:1;height:10px;background:var(--line2);border-radius:1px}
+.seg i.on{background:var(--amber);box-shadow:0 0 6px #ffb00080}
+.seg i.hot{background:var(--hot);box-shadow:0 0 6px #ff5a3c80}
+
+.clock{display:flex;flex-direction:column;align-items:center}
+.clock svg{width:100%;max-width:250px;height:auto}
+.dayparts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%;margin-top:8px}
+.dayparts div{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:10px;color:var(--amber-d);letter-spacing:.08em}
+.dayparts b{display:block;font-size:16px;color:var(--text);font-weight:500;letter-spacing:0}
+
+.calwrap{overflow-x:auto;padding-bottom:6px;touch-action:pan-x}
+.calmonths,.cal{display:grid;grid-auto-flow:column;gap:3px;width:max-content}
+.calmonths{grid-auto-columns:12px;font-size:9px;color:var(--dim);height:14px;margin-bottom:4px}
+.calmonths span{white-space:nowrap}
+.cal{grid-template-rows:repeat(7,12px);grid-auto-columns:12px;user-select:none}
+.cell{width:12px;height:12px;border-radius:50%;background:#241a13;opacity:.3;cursor:pointer}
+.cell.sel{opacity:1}
+.cell.l1{background:#5a3d10}.cell.l2{background:#8f620c}.cell.l3{background:#c98a00}.cell.l4{background:var(--amber);box-shadow:0 0 5px #ffb000aa}
+.cell.void{visibility:hidden}
+.legend{display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:8px;font-size:10px;color:var(--dim)}
+.legend .cell{opacity:1;cursor:default;width:10px;height:10px}
+
+.bars{display:flex;align-items:flex-end;gap:2px;height:130px;padding-bottom:16px;position:relative}
+.mb{flex:1;height:100%;display:flex;align-items:flex-end;position:relative;cursor:pointer}
+.mb i{display:block;width:100%;background:#4a3420;border-radius:2px 2px 0 0}
+.mb.sel i{background:var(--amber);box-shadow:0 0 6px #ffb00066}
+.mb:hover i{background:var(--text)}
+.mb span{position:absolute;top:100%;left:0;font-size:9px;color:var(--dim);margin-top:3px;white-space:nowrap}
+
+#tip{position:fixed;z-index:20;pointer-events:none;background:#0d0a07;border:1px solid var(--amber-d);color:var(--text);font-size:12px;padding:5px 8px;border-radius:4px;max-width:280px}
+#tip[hidden]{display:none}
+footer{margin-top:34px;color:var(--dim);font-size:11px;text-align:center;letter-spacing:.05em}
+
+@media(max-width:820px){
+  .g2,.g3,.g2e{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .lcd{grid-template-columns:1fr;gap:10px}
+  .num{font-size:56px}
+  .ticker div{white-space:normal}
+  .vu{grid-template-columns:repeat(2,1fr)}
+  .hp .r{grid-template-columns:26px 42px minmax(0,1fr) 34px}
+  .hp .seg{display:none}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>🎧 Моя <span>YouTube Music</span> статистика</h1>
-  <p class="sub" id="subtitle">Загрузка…</p>
-
-  <div class="controls">
-    <button class="pill active" data-period="all">Всё время</button>
-    <span id="yearBtns" class="yearbtns"></span>
-    <button class="pill" data-period="y">Этот год</button>
-    <button class="pill" data-period="m">Этот месяц</button>
-    <button class="pill" data-period="30">30 дней</button>
-    <button class="pill" data-period="custom">Свой период</button>
-    <span id="customRange" style="display:none;gap:.4rem;align-items:center">
-      <input type="date" id="from"> — <input type="date" id="to">
-      <button class="pill" id="applyCustom">OK</button>
-    </span>
-    <select id="topN">
-      <option value="10">Топ 10</option>
-      <option value="25" selected>Топ 25</option>
-      <option value="50">Топ 50</option>
-      <option value="100">Топ 100</option>
-    </select>
+  <div class="deck">
+    <div class="row1">
+      <div class="brand"><b>◉ YTM-FM</b>&nbsp;&nbsp;ХИТ-ПАРАД</div>
+      <div class="knobs" id="knobs"></div>
+    </div>
+    <div class="custom" id="custom" hidden>
+      <span>С</span><input type="date" id="from"><span>по</span><input type="date" id="to">
+      <button class="knob" id="applyCustom">ОК</button>
+    </div>
+    <div class="lcd">
+      <div class="num"><span id="plays">—</span><small id="span">ЗАГРУЗКА…</small></div>
+      <div class="ticker" id="ticker"></div>
+    </div>
+    <div class="vu" id="vu"></div>
   </div>
 
-  <div class="stats">
-    <div class="stat"><div class="num" id="stListens">—</div><div class="lbl">прослушиваний</div></div>
-    <div class="stat"><div class="num" id="stArtists">—</div><div class="lbl">исполнителей</div></div>
-    <div class="stat"><div class="num" id="stTracks">—</div><div class="lbl">уникальных треков</div></div>
-    <div class="stat"><div class="num" id="stDays">—</div><div class="lbl">дней со слушанием</div></div>
-  </div>
-
-  <div class="card">
-    <h2>🔥 Активность по дням <span style="font-size:.75rem;color:var(--muted)">(кликни на плитку — период за этот день)</span></h2>
-    <div class="calwrap"><div id="calendar"></div></div>
-    <div class="legend">меньше
-      <div class="cell"></div><div class="cell l1"></div><div class="cell l2"></div><div class="cell l3"></div><div class="cell l4"></div>
-      больше
+  <div class="grid g2">
+    <div>
+      <h3>▌ТОП ЭФИРА
+        <span class="ctl" id="chartCtl">
+          <button data-tab="a">ИСПОЛНИТЕЛИ</button><button data-tab="t">ТРЕКИ</button>
+          <button data-n="10">10</button><button data-n="25">25</button><button data-n="50">50</button>
+        </span>
+      </h3>
+      <div class="hp" id="chart"></div>
+    </div>
+    <div>
+      <h3>▌КОГДА СЛУШАЕШЬ</h3>
+      <div class="card clock"><svg id="clock" viewBox="0 0 240 240"></svg><div class="dayparts" id="dayparts"></div></div>
+      <h3>▌ЗАЛИПАНИЯ <span class="hint">трек на повторе за 7 дней</span></h3>
+      <div class="card" id="loops"></div>
     </div>
   </div>
 
-  <div class="grid">
-    <div class="card"><h2>🏆 Топ исполнителей</h2><div id="artists"></div></div>
-    <div class="card"><h2>🎵 Топ треков</h2><div id="tracks"></div></div>
-    <div class="card" style="grid-column:1/-1"><h2>📅 Прослушивания по месяцам</h2><div class="chart" id="months"></div></div>
+  <h3>▌НОВЫЕ ЗВЁЗДЫ</h3>
+  <div class="grid g3">
+    <div class="card"><div class="t"><span>★ ДЕБЮТ В ЭФИРЕ</span><span id="debutCount"></span></div><div class="cap">впервые в истории</div><div id="debuts"></div></div>
+    <div class="card"><div class="t"><span>↗ НА ВЗЛЁТЕ</span></div><div class="cap">прошлый период → этот</div><div id="rising"></div></div>
+    <div class="card"><div class="t"><span>✕ СНЯТЫ С ЭФИРА</span></div><div class="cap" id="goneCap"></div><div id="gone"></div></div>
   </div>
 
-  <footer>Собрано из Google Takeout (YouTube Music) · обновляется ежемесячно через GitHub Actions</footer>
+  <h3>▌СЕТКА ВЕЩАНИЯ <span class="hint">протяни мышкой по дням, чтобы выбрать период</span></h3>
+  <div class="card">
+    <div class="calwrap" id="calwrap"><div class="calmonths" id="calmonths"></div><div class="cal" id="cal"></div></div>
+    <div class="legend">меньше <i class="cell"></i><i class="cell l1"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell l4"></i> больше</div>
+  </div>
+
+  <div class="grid g2e">
+    <div><h3>▌ПРОСЛУШИВАНИЯ ПО МЕСЯЦАМ <span class="hint">клик — топ месяца</span></h3><div class="card"><div class="bars" id="monthPlays"></div></div></div>
+    <div><h3>▌ОТКРЫТИЯ ПО МЕСЯЦАМ <span class="hint">новые исполнители</span></h3><div class="card"><div class="bars" id="monthDisc"></div></div></div>
+  </div>
+
+  <footer id="footer"></footer>
 </div>
+<div id="tip" hidden></div>
 
 <script>
-let DATA=[], range=null;
 const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
 // local YYYY-MM-DD (toISOString() would give the UTC date)
-const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseDay=s=>new Date(s+'T00:00:00');
+const addDays=(s,n)=>{const d=parseDay(s);d.setDate(d.getDate()+n);return ymd(d)};
+const spanDays=(a,b)=>Math.round((parseDay(b)-parseDay(a))/864e5)+1;
+const dm=s=>`${s.slice(8,10)}.${s.slice(5,7)}`;
+const dmy=s=>`${dm(s)}.${s.slice(0,4)}`;
+const MON=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const nf=n=>n.toLocaleString('ru');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const plural=(n,one,few,many)=>{const a=n%10,b=n%100;return a===1&&b!==11?one:a>=2&&a<=4&&(b<10||b>=20)?few:many};
+const plays=n=>`${n} ${plural(n,'трек','трека','треков')}`;
+const times=n=>`${n} ${plural(n,'раз','раза','раз')}`;
+const countBy=(list,f)=>{const m=new Map();for(const e of list){const k=f(e);m.set(k,(m.get(k)||0)+1)}return m};
+const sortDesc=m=>[...m].sort((a,b)=>b[1]-a[1]);
+const ytm=q=>`https://music.youtube.com/search?q=${encodeURIComponent(q)}`;
 
-fetch('data.json').then(r=>r.json()).then(d=>{
-  // data is [{title, artist, date, ts, video}] — only music, ts in UTC; day = date in viewer's timezone
-  DATA=d;
-  for(const e of DATA) e.day=ymd(new Date(e.ts+'Z'));
-  DATA.sort((a,b)=>a.ts.localeCompare(b.ts));
-  if(!DATA.length){
-    $('subtitle').textContent='Нет данных';
-    return;
+const PRESETS=[['7','7Д'],['30','30Д'],['90','90Д'],['365','ГОД'],['all','ВСЁ']];
+const AMBER='#ffb000',HOT='#ff5a3c',OFF='#2a1f17';
+
+let DATA=[],MIN='',MAX='',YEARS=[],MONTHS=[];
+const ARTIST=new Map(),TRACK=new Map(); // key -> {name, first, ak}
+let DAYCOUNT=new Map(),LEVELS=[1,2,3];
+let state={p:'30',from:'',to:'',tab:'a',n:10,customOpen:false};
+
+fetch('data.json').then(r=>r.json()).then(init);
+
+function bump(m,k,v){let x=m.get(k);if(!x)m.set(k,x=new Map());x.set(v,(x.get(v)||0)+1)}
+function top1(m){let best='',c=-1;for(const [k,v] of m)if(v>c){best=k;c=v}return best}
+
+function init(d){
+  // data is [{title, artist, date, ts, video}] — only music, ts in UTC
+  DATA=d.sort((a,b)=>a.ts.localeCompare(b.ts));
+  if(!DATA.length){$('span').textContent='НЕТ ДАННЫХ';return}
+  const spell=new Map(),tspell=new Map();
+  for(const e of DATA){
+    const t=new Date(e.ts+'Z');
+    e.day=ymd(t);e.ms=t.getTime();e.h=t.getHours();
+    // same artist is sometimes spelled with different case ("zhanulka" / "Zhanulka")
+    e.ak=e.artist.trim().toLowerCase();
+    e.tk=e.title.trim().toLowerCase()+'\n'+e.ak;
+    bump(spell,e.ak,e.artist.trim());bump(tspell,e.tk,e.title.trim());
+    if(!ARTIST.has(e.ak))ARTIST.set(e.ak,{first:e.day});
+    if(!TRACK.has(e.tk))TRACK.set(e.tk,{first:e.day,ak:e.ak});
   }
-  const min=DATA[0].day,max=DATA[DATA.length-1].day;
-  $('from').min=$('to').min=min; $('from').max=$('to').max=max;
-  $('from').value=min; $('to').value=max;
-  buildYearButtons();
+  for(const [k,m] of spell)ARTIST.get(k).name=top1(m);
+  for(const [k,m] of tspell)TRACK.get(k).name=top1(m);
+  MIN=DATA[0].day;MAX=DATA[DATA.length-1].day;
+  YEARS=[...new Set(DATA.map(e=>e.day.slice(0,4)))];
+  for(let m=MIN.slice(0,7);m<=MAX.slice(0,7);){
+    MONTHS.push(m);
+    let [y,mo]=m.split('-').map(Number);mo===12?(y++,mo=1):mo++;m=`${y}-${pad(mo)}`;
+  }
+  DAYCOUNT=countBy(DATA,e=>e.day);
+  const sorted=[...DAYCOUNT.values()].sort((a,b)=>a-b),q=p=>sorted[Math.floor(p*(sorted.length-1))];
+  LEVELS=[q(.25),q(.5),q(.8)];
+  $('from').min=$('to').min=MIN;$('from').max=$('to').max=MAX;
+  $('footer').textContent=`данные до ${dmy(MAX)} · ${nf(DATA.length)} прослушиваний с ${dmy(MIN)} · обновляется автоматически из Google Takeout`;
+  readHash();render();
+}
+
+// --- period ---
+function resolve(){
+  const p=state.p;
+  if(p==='all')return{from:MIN,to:MAX};
+  if(/^\d{4}$/.test(p))return{from:`${p}-01-01`<MIN?MIN:`${p}-01-01`,to:`${p}-12-31`>MAX?MAX:`${p}-12-31`};
+  if(p==='custom')return{from:state.from,to:state.to};
+  return{from:addDays(MAX,-(+p-1)),to:MAX};
+}
+function readHash(){
+  const h=decodeURIComponent(location.hash.slice(1));
+  const m=h.match(/^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/);
+  if(m){state.p='custom';[state.from,state.to]=m[1]<=m[2]?[m[1],m[2]]:[m[2],m[1]]}
+  else state.p=PRESETS.some(([p])=>p===h)||YEARS.includes(h)?h:'30';
+}
+function setPeriod(p,from,to){
+  state.p=p;
+  if(p==='custom'){state.from=from;state.to=to}
+  history.replaceState(null,'','#'+(p==='custom'?`${from}..${to}`:p));
   render();
-});
-
-function buildYearButtons(){
-  const years=[...new Set(DATA.map(e=>e.day.slice(0,4)))].sort();
-  const box=$('yearBtns');
-  years.forEach(y=>{
-    const b=document.createElement('button');
-    b.className='pill'; b.textContent=y; b.dataset.period='year'+y;
-    box.appendChild(b);
-  });
 }
-
-function periodClick(b){
-  document.querySelectorAll('.pill[data-period]').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');
-  const p=b.dataset.period;range=null;
-  $('customRange').style.display=p==='custom'?'inline-flex':'none';
-  if(p==='all'){}
-  else if(p==='y'){const y=new Date().getFullYear();range=[`${y}-01-01`,`${y}-12-31`]}
-  else if(p.startsWith('year')){const y=p.slice(4);range=[`${y}-01-01`,`${y}-12-31`]}
-  else if(p==='m'){const d=new Date();range=[ymd(d).slice(0,8)+'01',ymd(d)]}
-  else if(p==='30'){const t=new Date(),s=new Date();s.setDate(s.getDate()-29);
-    range=[ymd(s),ymd(t)]}
-  else if(p==='custom'){range=[$('from').value,$('to').value]}
-  render();
-}
-
-function filtered(){
-  if(!range) return DATA;
-  return DATA.filter(e=>e.day>=range[0]&&e.day<=range[1]);
-}
-function fmtDate(d){return d.split('-').reverse().join('.')}
+window.addEventListener('hashchange',()=>{readHash();render()});
 
 function render(){
-  if(!DATA.length) return;
-  const list=filtered();
-  // list is sorted by ts, so day is sorted too
-  const min=list.length?list[0].day:'', max=list.length?list[list.length-1].day:'';
-  $('subtitle').textContent = list.length
-    ? `${fmtDate(min)} — ${fmtDate(max)} · ${list.length.toLocaleString('ru')} прослушиваний`
-    : 'Нет данных за выбранный период';
-  $('stListens').textContent=list.length.toLocaleString('ru');
-  $('stArtists').textContent=new Set(list.map(e=>e.artist)).size.toLocaleString('ru');
-  $('stTracks').textContent=new Set(list.map(e=>e.title+'|'+e.artist)).size.toLocaleString('ru');
-  $('stDays').textContent=new Set(list.map(e=>e.day)).size.toLocaleString('ru');
-
-  const topN=+$('topN').value;
-  renderBars($('artists'), count(list,e=>e.artist), topN, true);
-  renderBars($('tracks'), count(list,e=>`${e.title}||${e.artist}`), topN, false);
-  renderMonths(list);
-  renderCalendar(list);
-}
-function count(list,keyFn){
-  const m=new Map();
-  for(const e of list){const k=keyFn(e);m.set(k,(m.get(k)||0)+1)}
-  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
-}
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
-function renderBars(el,pairs,topN,linkArtist){
-  el.innerHTML='';
-  const max=pairs.length?pairs[0][1]:1;
-  pairs.slice(0,topN).forEach(([k,c],i)=>{
-    let nameHtml='', href='';
-    if(linkArtist){
-      const name=k;
-      href=`https://music.youtube.com/search?q=${encodeURIComponent(name)}`;
-      nameHtml=`<a target="_blank" href="${esc(href)}">${esc(name)}</a>`;
-      const row=document.createElement('div');row.className='row';
-      row.innerHTML=`<div class="rank">${i+1}</div><div class="name">${nameHtml}</div><div class="barwrap"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><div class="cnt">${c}</div>`;
-      el.appendChild(row);
-    } else {
-      const [title, artist]=k.split('||');
-      href=`https://music.youtube.com/search?q=${encodeURIComponent(title+' '+artist)}`;
-      nameHtml=`<a target="_blank" href="${esc(href)}"><span class="title">${esc(title)}</span><span class="artist">${esc(artist)}</span></a>`;
-      const row=document.createElement('div');row.className='row';
-      row.innerHTML=`<div class="rank">${i+1}</div><div class="name track">${nameHtml}</div><div class="barwrap"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><div class="cnt">${c}</div>`;
-      el.appendChild(row);
-    }
-  });
-  if(!pairs.length)el.innerHTML='<p style="color:var(--muted)">Пусто 🙁</p>';
-}
-function renderMonths(list){
-  const per=new Map(count(list,e=>e.day.slice(0,7)));
-  // fill months without listens so gaps stay visible
-  const m=[];
-  if(per.size){
-    const keys=[...per.keys()].sort();
-    let [y,mo]=keys[0].split('-').map(Number);
-    for(let k=keys[0];k<=keys[keys.length-1];mo===12?(y++,mo=1):mo++,k=`${y}-${String(mo).padStart(2,'0')}`)
-      m.push([k,per.get(k)||0]);
+  const {from,to}=resolve();
+  const len=spanDays(from,to);
+  const cur=DATA.filter(e=>e.day>=from&&e.day<=to);
+  let prev=null;
+  if(state.p!=='all'){
+    const pt=addDays(from,-1);
+    if(pt>=MIN){const pf=addDays(from,-len);prev=DATA.filter(e=>e.day>=pf&&e.day<=pt)}
   }
-  const el=$('months');el.innerHTML='';
-  const max=m.length?Math.max(...m.map(x=>x[1])):1;
-  const names=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-  m.forEach(([k,c])=>{
-    const col=document.createElement('div');col.className='col';
-    col.innerHTML=`<div class="val">${c}</div><div class="bar2" style="height:${Math.max(c/max*100,2)}%"></div>`+
-      `<div class="lab">${names[+k.slice(5)]} ${k.slice(2,4)}</div>`;
-    el.appendChild(col);
-  });
+  const ctx={from,to,len,cur,prev,
+    ca:countBy(cur,e=>e.ak),ct:countBy(cur,e=>e.tk),
+    pa:prev&&countBy(prev,e=>e.ak),pt:prev&&countBy(prev,e=>e.tk)};
+  renderKnobs(ctx);renderLcd(ctx);renderChart(ctx);renderClock(ctx);renderLoops(ctx);
+  renderDebuts(ctx);renderRising(ctx);renderGone(ctx);renderCalendar(ctx);renderMonths(ctx);
 }
 
-function renderCalendar(list){
-  const perDay=new Map();
-  for(const e of list) perDay.set(e.day,(perDay.get(e.day)||0)+1);
-  const el=$('calendar'); el.innerHTML='';
-  el.className='calendar';
-  if(!perDay.size){el.innerHTML='<p style="color:var(--muted)">Пусто</p>';return}
-  const days=[...perDay.keys()].sort();
-  const minD=new Date(days[0]+'T00:00:00'), maxD=new Date(days[days.length-1]+'T00:00:00');
-  minD.setDate(minD.getDate()-minD.getDay());
-  const max=Math.max(...perDay.values());
-  const lvl=c=>c===0?'':c<=Math.ceil(max*0.25)?'l1':c<=Math.ceil(max*0.5)?'l2':c<=Math.ceil(max*0.75)?'l3':'l4';
-  const d=new Date(minD);
-  while(d<=maxD){
-    const iso=ymd(d);
-    const c=perDay.get(iso)||0;
-    const cell=document.createElement('div');
-    cell.className='cell '+(c?lvl(c):'');
-    cell.title=`${fmtDate(iso)}: ${c} прослушивани${c===1?'е':c<5?'я':'й'}`;
-    cell.style.cursor=c?'pointer':'default';
-    if(c){
-      cell.onclick=()=>{
-        range=[iso,iso];
-        document.querySelectorAll('.pill[data-period]').forEach(x=>x.classList.remove('active'));
-        $('customRange').style.display='inline-flex';
-        $('from').value=iso;$('to').value=iso;
-        window.scrollTo({top:0,behavior:'smooth'});
-        render();
-      };
-    }
-    el.appendChild(cell);
-    d.setDate(d.getDate()+1);
-  }
+function renderKnobs({from,to}){
+  const b=(p,l)=>`<button class="knob${state.p===p?' on':''}" data-p="${p}">${l}</button>`;
+  $('knobs').innerHTML=PRESETS.map(([p,l])=>b(p,l)).join('')+'<span class="sep"></span>'+YEARS.map(y=>b(y,y)).join('')+b('custom','⟷');
+  $('custom').hidden=!(state.customOpen||state.p==='custom');
+  $('from').value=from;$('to').value=to;
+  for(const el of $('chartCtl').children)el.classList.toggle('on',el.dataset.tab===state.tab||el.dataset.n===String(state.n));
 }
-
-document.addEventListener('click',e=>{
-  const b=e.target.closest('.pill[data-period]');
-  if(b) periodClick(b);
+$('knobs').addEventListener('click',e=>{
+  const k=e.target.closest('[data-p]');if(!k)return;
+  if(k.dataset.p==='custom'){state.customOpen=!state.customOpen;$('custom').hidden=!state.customOpen;return}
+  state.customOpen=false;setPeriod(k.dataset.p);
 });
-$('applyCustom').onclick=()=>{range=[$('from').value||'0000',$('to').value||'9999'];render()};
-$('topN').onchange=render;
+$('applyCustom').onclick=()=>{
+  let f=$('from').value||MIN,t=$('to').value||MAX;if(f>t)[f,t]=[t,f];
+  setPeriod('custom',f,t);
+};
+$('chartCtl').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.tab)state.tab=b.dataset.tab;
+  if(b.dataset.n)state.n=+b.dataset.n;
+  render();
+});
+
+// --- LCD summary ---
+function renderLcd({from,to,len,cur,prev,ca,pa,ct}){
+  $('plays').textContent=nf(cur.length);
+  $('span').textContent=`ПРОСЛУШИВАНИЙ · ${dmy(from)} — ${dmy(to)}`;
+  if(!cur.length){
+    $('ticker').innerHTML='<div>▸ Тишина в эфире: за этот период нет прослушиваний</div>';
+    $('vu').innerHTML='';return;
+  }
+  const [ta,tc]=sortDesc(ca)[0],[tt,ttc]=sortDesc(ct)[0];
+  const perDay=sortDesc(countBy(cur,e=>e.day)),[rd,rc]=perDay[0];
+  const avg=Math.round(cur.length/perDay.length);
+  let cmp='';
+  if(pa){
+    const p=pa.get(ta)||0;
+    cmp=!p?' · в прошлом периоде не звучал':tc/p>=1.5?` · ×${(tc/p).toFixed(1).replace('.0','')} к прошлому периоду`:` · было ${p}`;
+  }
+  const trk=TRACK.get(tt);
+  $('ticker').innerHTML=
+    `<div>▸ Исполнитель периода: <b>${esc(ARTIST.get(ta).name)}</b> (${tc})<i>${cmp}</i></div>`+
+    `<div>▸ Хит: <b>${esc(trk.name)}</b> — ${esc(ARTIST.get(trk.ak).name)} <i>· ${times(ttc)}</i></div>`+
+    `<div>▸ Рекорд: <b>${dm(rd)}</b> — ${plays(rc)} <i>· обычно ~${avg} в активный день</i></div>`;
+  let delta='<b>—</b>НЕТ СРАВНЕНИЯ';
+  if(prev&&prev.length){
+    const d=Math.round((cur.length/prev.length-1)*100);
+    delta=`<b class="${d<0?'down':'up'}">${d>0?'+':d<0?'−':''}${Math.abs(d)}%</b>VS ПРОШЛЫЕ ${len} ДН.`;
+  }
+  const debut=pa?nf([...ca.keys()].filter(k=>ARTIST.get(k).first>=from).length):'—';
+  const hours=hourCounts(cur),peak=hours.indexOf(Math.max(...hours));
+  $('vu').innerHTML=`<div>${delta}</div><div><b>${nf(ca.size)}</b>${plural(ca.size,'АРТИСТ','АРТИСТА','АРТИСТОВ')}</div>`+
+    `<div><b>${debut}</b>НОВЫХ ИМЁН</div><div><b>${pad(peak)}:00</b>ПИКОВЫЙ ЧАС</div>`;
+}
+
+// --- chart ---
+function renderChart({from,ca,pa,ct,pt}){
+  const isA=state.tab==='a';
+  const curM=isA?ca:ct,prevM=isA?pa:pt,meta=isA?ARTIST:TRACK;
+  const rows=sortDesc(curM).slice(0,state.n);
+  const prevRank=prevM&&new Map(sortDesc(prevM).map(([k],i)=>[k,i+1]));
+  const max=rows.length?rows[0][1]:1;
+  $('chart').innerHTML=rows.map(([k,c],i)=>{
+    const m=meta.get(k);let tag;
+    if(!prevRank)tag=['eq','·',''];
+    else if(m.first>=from)tag=['new','NEW','впервые в истории'];
+    else if(!prevRank.has(k))tag=['re','RE','вернулся: в прошлом периоде не звучал'];
+    else{
+      const was=prevRank.get(k),d=was-(i+1);
+      tag=d>0?['up','▲'+d,`был #${was}`]:d<0?['down','▼'+(-d),`был #${was}`]:['eq','=','та же позиция'];
+    }
+    const name=isA
+      ?`<a href="${ytm(m.name)}" target="_blank">${esc(m.name)}</a>`
+      :`<a href="${ytm(m.name+' '+ARTIST.get(m.ak).name)}" target="_blank">${esc(m.name)}</a><small>${esc(ARTIST.get(m.ak).name)}</small>`;
+    const on=Math.max(1,Math.round(c/max*16));
+    let seg='';for(let s=0;s<16;s++)seg+=`<i class="${s<on?(s>=13?'hot':'on'):''}"></i>`;
+    return `<div class="r"><span class="n">${pad(i+1)}</span><span class="tag t-${tag[0]}" data-tip="${tag[2]}">${tag[1]}</span>`+
+      `<span class="nm">${name}</span><div class="seg">${seg}</div><span class="c">${c}</span></div>`;
+  }).join('')||'<div class="empty">Пусто 🙁</div>';
+}
+
+// --- clock ---
+function hourCounts(list){const h=Array(24).fill(0);for(const e of list)h[e.h]++;return h}
+function renderClock({cur}){
+  const hours=hourCounts(cur),mx=Math.max(...hours,1),peak=hours.indexOf(Math.max(...hours));
+  const C=120,R0=44,R1=104,P=(r,a)=>`${(C+r*Math.cos(a)).toFixed(1)},${(C+r*Math.sin(a)).toFixed(1)}`;
+  let s='';
+  hours.forEach((v,h)=>{
+    // midnight on top, noon at the bottom
+    const a=h/24*2*Math.PI-Math.PI/2,a2=a+2*Math.PI/24*.82,r=v?R0+6+v/mx*(R1-R0-6):R0+4;
+    const fill=!v?OFF:h===peak?HOT:AMBER,op=v?(.35+.65*v/mx).toFixed(2):1;
+    s+=`<path d="M${P(R0,a)} L${P(r,a)} A${r} ${r} 0 0 1 ${P(r,a2)} L${P(R0,a2)} A${R0} ${R0} 0 0 0 ${P(R0,a)}" fill="${fill}" opacity="${op}" data-tip="${pad(h)}:00–${pad((h+1)%24)}:00 — ${plays(v)}"/>`;
+  });
+  for(const [h,x,y,anchor] of [[0,C,10,'middle'],[6,236,C+4,'end'],[12,C,238,'middle'],[18,4,C+4,'start']])
+    s+=`<text x="${x}" y="${y}" fill="#8d7a62" font-size="10" text-anchor="${anchor}">${pad(h)}</text>`;
+  s+=cur.length
+    ?`<text x="${C}" y="${C+2}" fill="${AMBER}" font-size="22" text-anchor="middle">${pad(peak)}:00</text><text x="${C}" y="${C+18}" fill="#a07a3c" font-size="9" letter-spacing="2" text-anchor="middle">ПИК</text>`
+    :`<text x="${C}" y="${C+4}" fill="#8d7a62" font-size="11" text-anchor="middle">тишина</text>`;
+  $('clock').innerHTML=s;
+  const part=(a,b)=>hours.slice(a,b).reduce((x,y)=>x+y,0),tot=cur.length||1;
+  $('dayparts').innerHTML=[['НОЧЬ',0,6],['УТРО',6,12],['ДЕНЬ',12,18],['ВЕЧЕР',18,24]]
+    .map(([l,a,b])=>`<div data-tip="${pad(a)}:00–${pad(b%24)}:00 — ${plays(part(a,b))}"><b>${Math.round(part(a,b)/tot*100)}%</b>${l}</div>`).join('');
+}
+
+// --- loops: most plays of one track within any 7 days ---
+function renderLoops({cur}){
+  const by=new Map();
+  for(const e of cur){let a=by.get(e.tk);if(!a)by.set(e.tk,a=[]);a.push(e.ms)}
+  const W=7*864e5,res=[];
+  for(const [k,ts] of by){
+    if(ts.length<3)continue;
+    let best=0,start=0;
+    for(let i=0,j=0;i<ts.length;i++){while(ts[i]-ts[j]>=W)j++;if(i-j+1>best){best=i-j+1;start=ts[j]}}
+    if(best>=3)res.push([k,best,start]);
+  }
+  res.sort((a,b)=>b[1]-a[1]);
+  $('loops').innerHTML=res.slice(0,4).map(([k,n,st])=>{
+    const t=TRACK.get(k),d=ymd(new Date(st));
+    return `<div class="li"><span class="nm"><a href="${ytm(t.name+' '+ARTIST.get(t.ak).name)}" target="_blank">${esc(t.name)}</a> <span style="color:var(--dim)">— ${esc(ARTIST.get(t.ak).name)}</span></span><span class="v" data-tip="неделя с ${dmy(d)}">${n}× · ${dm(d)}</span></div>`;
+  }).join('')||'<div class="empty">Без залипаний: ни один трек не звучал 3+ раза за неделю</div>';
+}
+
+// --- new stars ---
+function artistLi(k,v,cls=''){
+  const n=ARTIST.get(k).name;
+  return `<div class="li"><span class="nm"><a href="${ytm(n)}" target="_blank">${esc(n)}</a></span><span class="v ${cls}">${v}</span></div>`;
+}
+function renderDebuts({from,ca,pa}){
+  if(!pa){$('debutCount').textContent='';$('debuts').innerHTML='<div class="empty">С начала истории все имена новые — выбери период покороче</div>';return}
+  const deb=sortDesc(ca).filter(([k])=>ARTIST.get(k).first>=from);
+  $('debutCount').textContent=deb.length?deb.length:'';
+  $('debuts').innerHTML=deb.slice(0,6).map(([k,c])=>artistLi(k,`<span data-tip="${times(c)}, впервые ${dmy(ARTIST.get(k).first)}">${c} · с ${dm(ARTIST.get(k).first)}</span>`)).join('')
+    ||'<div class="empty">Новых имён за период нет</div>';
+}
+function renderRising({from,cur,ca,pa}){
+  if(!pa){$('rising').innerHTML='<div class="empty">Не с чем сравнить: перед этим периодом истории нет</div>';return}
+  const minC=Math.max(3,Math.round(cur.length*.01));
+  const rs=[...ca].filter(([k,c])=>ARTIST.get(k).first<from&&c>=minC&&c>=1.5*(pa.get(k)||0)+2)
+    .map(([k,c])=>[k,pa.get(k)||0,c]).sort((a,b)=>(b[2]-b[1])-(a[2]-a[1])).slice(0,6);
+  $('rising').innerHTML=rs.map(([k,p,c])=>artistLi(k,`${p} → ${c}`,'up')).join('')
+    ||'<div class="empty">Резких взлётов нет — слушаешь проверенное</div>';
+}
+function renderGone({from,len,ca}){
+  // baseline: at least 90 days before the period, so short periods still have enough history
+  const L=Math.max(len,90),bt=addDays(from,-1),bf=addDays(from,-L);
+  if(bt<MIN){$('goneCap').textContent='';$('gone').innerHTML='<div class="empty">Перед этим периодом истории нет</div>';return}
+  $('goneCap').textContent=`${L} дн. до периода → этот период`;
+  const base=countBy(DATA.filter(e=>e.day>=bf&&e.day<=bt),e=>e.ak),scale=len/L;
+  const gone=sortDesc(base).filter(([k,b])=>b>=8&&(ca.get(k)||0)<=b*scale*.15).slice(0,6);
+  $('gone').innerHTML=gone.map(([k,b])=>artistLi(k,`<s>${b}</s> → ${ca.get(k)||0}`)).join('')
+    ||'<div class="empty">Никого не потерял</div>';
+}
+
+// --- calendar with drag selection ---
+function lvl(c){return !c?'':c<=LEVELS[0]?'l1':c<=LEVELS[1]?'l2':c<=LEVELS[2]?'l3':'l4'}
+function renderCalendar({from,to}){
+  const d=parseDay(MIN);d.setDate(d.getDate()-(d.getDay()+6)%7); // back to Monday
+  let cells='',col=0,toCol=0;const labels=[];
+  for(;ymd(d)<=MAX;d.setDate(d.getDate()+1)){
+    const day=ymd(d),wd=(d.getDay()+6)%7;
+    if(wd===0)col++;
+    if(day.endsWith('-01')||col===1&&wd===0)labels.push([col,MON[d.getMonth()]+(d.getMonth()===0||col===1?' '+day.slice(2,4):'')]);
+    if(day<MIN){cells+='<i class="cell void"></i>';continue}
+    const c=DAYCOUNT.get(day)||0,sel=day>=from&&day<=to;
+    if(day===to)toCol=col;
+    cells+=`<i class="cell ${lvl(c)}${sel?' sel':''}" data-day="${day}" data-tip="${dmy(day)} — ${plays(c)}"></i>`;
+  }
+  // first column label would collide with a month starting right after it
+  if(labels.length>1&&labels[1][0]-labels[0][0]<3)labels.shift();
+  $('cal').innerHTML=cells;$('calmonths').innerHTML=labels.map(([c,t])=>`<span style="grid-column:${c}">${t}</span>`).join('');
+  const w=$('calwrap');w.scrollLeft=Math.max(0,toCol*15-w.clientWidth+60);
+}
+let drag=null;
+const cellAt=(x,y)=>{const el=document.elementFromPoint(x,y);return el&&el.closest?el.closest('.cell[data-day]'):null};
+function paintDrag(){
+  const [f,t]=drag.a<=drag.b?[drag.a,drag.b]:[drag.b,drag.a];
+  for(const c of $('cal').children)if(c.dataset.day)c.classList.toggle('sel',c.dataset.day>=f&&c.dataset.day<=t);
+}
+$('cal').addEventListener('pointerdown',e=>{
+  const c=e.target.closest('.cell[data-day]');if(!c)return;
+  if(e.pointerType==='mouse')e.preventDefault();
+  drag={a:c.dataset.day,b:c.dataset.day};paintDrag();
+});
+window.addEventListener('pointermove',e=>{
+  if(!drag)return;const c=cellAt(e.clientX,e.clientY);
+  if(c&&c.dataset.day!==drag.b){drag.b=c.dataset.day;paintDrag()}
+});
+window.addEventListener('pointerup',()=>{
+  if(!drag)return;const [f,t]=drag.a<=drag.b?[drag.a,drag.b]:[drag.b,drag.a];
+  drag=null;state.customOpen=false;setPeriod('custom',f,t);
+});
+window.addEventListener('pointercancel',()=>{if(drag){drag=null;render()}});
+
+// --- months ---
+function renderMonths({from,to}){
+  const perMonth=countBy(DATA,e=>e.day.slice(0,7));
+  const disc=countBy([...ARTIST.values()],a=>a.first.slice(0,7));
+  bars($('monthPlays'),perMonth,from,to,n=>`${n} ${plural(n,'прослушивание','прослушивания','прослушиваний')}`);
+  bars($('monthDisc'),disc,from,to,n=>`${n} ${plural(n,'новый исполнитель','новых исполнителя','новых исполнителей')}`);
+}
+function bars(el,map,from,to,unit){
+  const max=Math.max(...MONTHS.map(m=>map.get(m)||0),1),f=from.slice(0,7),t=to.slice(0,7);
+  el.innerHTML=MONTHS.map((m,i)=>{
+    const v=map.get(m)||0,mo=+m.slice(5);
+    const label=i===0||mo===1?m.slice(0,4):'';
+    return `<div class="mb${m>=f&&m<=t?' sel':''}" data-month="${m}" data-tip="${MON[mo-1]} ${m.slice(0,4)} — ${unit(v)}"><i style="height:${v?Math.max(v/max*100,3):0}%"></i>${label?`<span>${label}</span>`:''}</div>`;
+  }).join('');
+}
+for(const id of ['monthPlays','monthDisc'])$(id).addEventListener('click',e=>{
+  const b=e.target.closest('[data-month]');if(!b)return;
+  const [y,m]=b.dataset.month.split('-').map(Number);
+  state.customOpen=false;setPeriod('custom',`${b.dataset.month}-01`,ymd(new Date(y,m,0)));
+});
+
+// --- tooltip ---
+const tip=$('tip');
+document.addEventListener('pointerover',e=>{
+  const t=e.target.closest&&e.target.closest('[data-tip]');
+  if(!t||!t.dataset.tip){tip.hidden=true;return}
+  tip.textContent=t.dataset.tip;tip.hidden=false;
+});
+document.addEventListener('pointermove',e=>{
+  if(tip.hidden)return;
+  tip.style.left=Math.min(e.clientX+14,innerWidth-tip.offsetWidth-8)+'px';
+  tip.style.top=(e.clientY+18)+'px';
+});
 </script>
 </body>
 </html>
