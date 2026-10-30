@@ -113,7 +113,10 @@ async function fetchHistory(url: string, name: string, headers?: Record<string, 
   const zip = join(DOWNLOAD_DIR, name);
   await download(url, zip, headers);
   try {
-    return await extractHistory(zip, OUT_DIR);
+    if (await extractHistory(zip, OUT_DIR)) return true;
+    console.error(`No watch-history in ${name}, it contains:`);
+    console.error((await Bun.$`unzip -l ${zip}`.nothrow().text()).split("\n").slice(0, 40).join("\n"));
+    return false;
   } finally {
     await rm(zip, { force: true });
   }
