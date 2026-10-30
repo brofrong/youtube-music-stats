@@ -82,12 +82,12 @@ async function listTakeoutFiles(accessToken: string, folderId?: string): Promise
   return data.files ?? [];
 }
 
-/** Group zip parts by export ("takeout-20260827T120000Z-001.zip" -> "takeout-20260827T120000Z"), newest first. */
+/** Group files by export ("takeout-20261027T154352Z-001.zip", "takeout-20261027T154352Z-1-001.zip" -> "takeout-20261027T154352Z"), newest first. */
 export function groupExports(files: DriveFile[]): TakeoutExport[] {
   const byKey = new Map<string, TakeoutExport>();
   for (const f of files) {
     if (!/\.zip$/i.test(f.name)) continue;
-    const key = f.name.replace(/(-\d+)?\.zip$/i, "");
+    const key = f.name.replace(/(-\d+)*\.zip$/i, "");
     const exp = byKey.get(key) ?? { key, createdTime: f.createdTime, parts: [] };
     exp.parts.push(f);
     if (f.createdTime > exp.createdTime) exp.createdTime = f.createdTime;
