@@ -1,7 +1,7 @@
 Takeout.zip
 takeout/
+takeout-dl/
 __MACOSX/
 .DS_Store
-site/.last-takeout-id
 .env
 node_modules/

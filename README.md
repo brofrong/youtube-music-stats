@@ -7,12 +7,12 @@
 ## Архитектура
 
 ```
-Google Takeout (на Диск, каждые 2 месяца) -> Google Drive -> GitHub Actions (ingest.yml) -> scripts/fetch.ts -> Takeout.zip -> scripts/parse.ts -> site/data.json -> Pages
+Google Takeout (на Диск, каждые 2 месяца) -> Google Drive -> GitHub Actions (ingest.yml, по понедельникам) -> scripts/fetch.ts -> takeout/ -> scripts/parse.ts -> site/data.json -> Pages
 ```
 
-- `scripts/parse.ts` — парсит `watch-history.html` **и** `watch-history.json`, фильтрует только `YouTube Music`, чистит `Artist - Topic -> Artist`, инкрементально дедуплицирует по `video|ts`.
-- `scripts/fetch.ts` — качает последний `takeout*.zip` с Drive по `drive.readonly`.
-- `site/index.html` — только музыка, в топе треков `Название — Исполнитель`.
+- `scripts/fetch.ts` — находит на Drive последний экспорт `takeout-*.zip` (включая многотомные `-001.zip`, `-002.zip`), качает части по очереди и достаёт из них только `watch-history.*`. Уже обработанный экспорт запоминается в `site/.last-takeout-id`, повторные запуски ничего не делают.
+- `scripts/parse.ts` — парсит `watch-history.html` **и** `watch-history.json`, фильтрует только `YouTube Music`, чистит `Artist - Topic -> Artist`, инкрементально дедуплицирует по `video|ts`. Время хранится в UTC (часовой пояс из HTML пересчитывается). Если новые данные почти не совпадают со старыми за общий период, парсер отказывается писать (защита от задвоения истории), обход — `--force`.
+- `site/index.html` — только музыка, в топе треков `Название — Исполнитель`, дни считаются в часовом поясе браузера.
 
 ## Локальная разработка
 
@@ -20,6 +20,7 @@ Google Takeout (на Диск, каждые 2 месяца) -> Google Drive -> G
 bun install
 bun run parse              # парсит takeout/ -> site/data.json (инкрементально)
 bun run parse -- --no-incremental  # перезаписать с нуля
+bun test                   # тесты парсера
 bun --hot index.ts         # dev server http://localhost:3000
 ```
 
@@ -29,8 +30,9 @@ bun --hot index.ts         # dev server http://localhost:3000
 
 1. https://takeout.google.com -> **Создать экспорт**
 2. Снять все галки, выбрать только `YouTube and YouTube Music`
-3. **Способ получения: Добавить на Диск**, частота **Каждые 2 месяца в течение 1 года**, тип `.zip`, размер `2 ГБ`
-4. Создать экспорт. Теперь каждые 2 месяца на Диске появится `takeout-*.zip`.
+3. В `All YouTube data included` оставить только **history** (иначе в архив попадут видео, и он разобьётся на много частей по 2 ГБ)
+4. **Способ получения: Добавить на Диск**, частота **Каждые 2 месяца в течение 1 года**, тип `.zip`
+5. Создать экспорт. Теперь каждые 2 месяца на Диске (папка `Takeout`) появится `takeout-*.zip`. Старые экспорты можно удалять — нужен только последний.
 
 ### 2. Google Cloud OAuth
 
@@ -58,13 +60,13 @@ Repo -> Settings -> Secrets and variables -> Actions -> New secret:
 - `GOOGLE_CLIENT_ID` — из шага 2
 - `GOOGLE_CLIENT_SECRET` — из шага 2
 - `GOOGLE_REFRESH_TOKEN` — из шага 3
-- `DRIVE_FOLDER_ID` (опционально) — если Takeout падает в папку, возьми ID из URL `https://drive.google.com/drive/folders/<ID>`
+- `DRIVE_FOLDER_ID` (опционально) — ID папки из URL `https://drive.google.com/drive/folders/<ID>`. Если в ней ничего не найдено, поиск идёт по всему Диску (с warning в логе).
 
 ### 5. Проверка
 
-- Actions -> `Ingest Takeout` -> **Run workflow** (можно передать `takeout_url` вручную для теста).
-- По расписанию: `cron: 0 6 1 * *` (1-го числа каждого месяца).
-- Workflow качает zip, парсит инкрементально, коммитит `site/data.json` и деплоит Pages.
+- Actions -> `Ingest Takeout` -> **Run workflow** (можно передать `takeout_url` вручную для теста, или `force`, чтобы заново обработать последний экспорт).
+- По расписанию: `cron: 0 6 * * 1` (каждый понедельник). Пока нового экспорта нет, запуск просто завершается.
+- Workflow качает экспорт, парсит инкрементально, коммитит `site/data.json` + `site/.last-takeout-id` и деплоит Pages (только если что-то изменилось).
 
 Локальный тест без Drive:
 
@@ -80,7 +82,7 @@ bun run scripts/parse.ts --input Takeout.zip
 
 ## Миграция старых данных
 
-Старый `site/data.json` с полями `{channel, m}` уже мигрирован в `{title, artist, date, ts, video, token}` с чисткой ` - Topic` и фильтром только музыки:
+Старый `site/data.json` с полями `{channel, m}` уже мигрирован в `{title, artist, date, ts, video}` (время в UTC) с чисткой ` - Topic` и фильтром только музыки:
 
 ```bash
 bun run scripts/migrate.ts

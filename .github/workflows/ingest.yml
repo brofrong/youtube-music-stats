@@ -2,18 +2,21 @@ name: Ingest Takeout
 
 on:
   schedule:
-    - cron: "0 6 1 * *" # 1st of each month 06:00 UTC
+    - cron: "0 6 * * 1" # every Monday 06:00 UTC; no-op until a new export shows up on Drive
   workflow_dispatch:
     inputs:
       takeout_url:
         description: "Direct Takeout URL (optional, overrides Drive)"
         required: false
         type: string
+      force:
+        description: "Re-process the latest Drive export even if it was already ingested"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: ingest
@@ -22,59 +25,49 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.4
 
       - name: Fetch Takeout from Drive or URL
+        id: fetch
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
           TAKEOUT_URL: ${{ inputs.takeout_url }}
-        run: |
-          if [ -n "$TAKEOUT_URL" ]; then
-            echo "Using direct URL"
-          elif [ -z "$GOOGLE_REFRESH_TOKEN" ]; then
-            echo "::warning::No GOOGLE_REFRESH_TOKEN, skipping fetch (manual dispatch with takeout_url still works)"
-            exit 0
-          fi
-          bun run scripts/fetch.ts
+          FORCE: ${{ inputs.force && '1' || '' }}
+        run: bun run scripts/fetch.ts
 
       - name: Parse Takeout (incremental)
-        run: |
-          if [ -f "Takeout.zip" ]; then
-            echo "Found Takeout.zip"
-            bun run scripts/parse.ts --input Takeout.zip
-          elif [ -d "takeout" ]; then
-            bun run scripts/parse.ts --input takeout
-          else
-            echo "No Takeout.zip or takeout/ found, trying auto-detect"
-            bun run scripts/parse.ts
-          fi
-          # cleanup zip to not commit
-          rm -f Takeout.zip
-          rm -rf takeout
+        if: steps.fetch.outputs.skip != 'true'
+        run: bun run scripts/parse.ts --input takeout
 
-      - name: Commit updated data.json
+      - name: Commit updated data
+        id: commit
         run: |
-          if git diff --quiet site/data.json; then
+          git add site
+          if git diff --cached --quiet; then
             echo "No changes"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add site/data.json site/.last-takeout-id || true
           git commit -m "chore: ingest takeout $(date -u +%Y-%m-%d)"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
+  # Pushes made with GITHUB_TOKEN don't trigger deploy.yml, so deploy from here
   deploy:
     needs: ingest
-    if: always() && (needs.ingest.result == 'success' || needs.ingest.result == 'skipped')
+    if: needs.ingest.outputs.changed == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -87,12 +80,12 @@ jobs:
       group: pages
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

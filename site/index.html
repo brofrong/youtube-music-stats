@@ -108,16 +108,19 @@ footer{margin-top:2.5rem;color:var(--muted);font-size:.85rem;text-align:center}
 <script>
 let DATA=[], range=null;
 const $=id=>document.getElementById(id);
+// local YYYY-MM-DD (toISOString() would give the UTC date)
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 fetch('data.json').then(r=>r.json()).then(d=>{
-  // data is [{title, artist, date, ts, video, token}] — only music
+  // data is [{title, artist, date, ts, video}] — only music, ts in UTC; day = date in viewer's timezone
   DATA=d;
-  DATA.sort((a,b)=>a.ts.localeCompare(b.ts) || a.date.localeCompare(b.date));
+  for(const e of DATA) e.day=ymd(new Date(e.ts+'Z'));
+  DATA.sort((a,b)=>a.ts.localeCompare(b.ts));
   if(!DATA.length){
     $('subtitle').textContent='Нет данных';
     return;
   }
-  const min=DATA[0].date,max=DATA[DATA.length-1].date;
+  const min=DATA[0].day,max=DATA[DATA.length-1].day;
   $('from').min=$('to').min=min; $('from').max=$('to').max=max;
   $('from').value=min; $('to').value=max;
   buildYearButtons();
@@ -125,14 +128,13 @@ fetch('data.json').then(r=>r.json()).then(d=>{
 });
 
 function buildYearButtons(){
-  const years=[...new Set(DATA.map(e=>e.date.slice(0,4)))].sort();
+  const years=[...new Set(DATA.map(e=>e.day.slice(0,4)))].sort();
   const box=$('yearBtns');
   years.forEach(y=>{
     const b=document.createElement('button');
     b.className='pill'; b.textContent=y; b.dataset.period='year'+y;
     box.appendChild(b);
   });
-  document.querySelectorAll('.pill[data-period]').forEach(b=>b.onclick=()=>periodClick(b));
 }
 
 function periodClick(b){
@@ -143,35 +145,31 @@ function periodClick(b){
   if(p==='all'){}
   else if(p==='y'){const y=new Date().getFullYear();range=[`${y}-01-01`,`${y}-12-31`]}
   else if(p.startsWith('year')){const y=p.slice(4);range=[`${y}-01-01`,`${y}-12-31`]}
-  else if(p==='m'){const d=new Date();range=[d.toISOString().slice(0,8)+'01',d.toISOString().slice(0,10)]}
-  else if(p==='30'){const t=new Date(),s=new Date(Date.now()-29*864e5);
-    range=[s.toISOString().slice(0,10),t.toISOString().slice(0,10)]}
+  else if(p==='m'){const d=new Date();range=[ymd(d).slice(0,8)+'01',ymd(d)]}
+  else if(p==='30'){const t=new Date(),s=new Date();s.setDate(s.getDate()-29);
+    range=[ymd(s),ymd(t)]}
   else if(p==='custom'){range=[$('from').value,$('to').value]}
   render();
 }
 
 function filtered(){
   if(!range) return DATA;
-  return DATA.filter(e=>e.date>=range[0]&&e.date<=range[1]);
+  return DATA.filter(e=>e.day>=range[0]&&e.day<=range[1]);
 }
 function fmtDate(d){return d.split('-').reverse().join('.')}
 
 function render(){
   if(!DATA.length) return;
   const list=filtered();
-  // list is sorted by ts, but for subtitle use min/max of filtered
-  let min='',max='';
-  if(list.length){
-    const sorted=[...list].sort((a,b)=>a.date.localeCompare(b.date));
-    min=sorted[0].date; max=sorted[sorted.length-1].date;
-  }
+  // list is sorted by ts, so day is sorted too
+  const min=list.length?list[0].day:'', max=list.length?list[list.length-1].day:'';
   $('subtitle').textContent = list.length
     ? `${fmtDate(min)} — ${fmtDate(max)} · ${list.length.toLocaleString('ru')} прослушиваний`
     : 'Нет данных за выбранный период';
   $('stListens').textContent=list.length.toLocaleString('ru');
   $('stArtists').textContent=new Set(list.map(e=>e.artist)).size.toLocaleString('ru');
   $('stTracks').textContent=new Set(list.map(e=>e.title+'|'+e.artist)).size.toLocaleString('ru');
-  $('stDays').textContent=new Set(list.map(e=>e.date)).size.toLocaleString('ru');
+  $('stDays').textContent=new Set(list.map(e=>e.day)).size.toLocaleString('ru');
 
   const topN=+$('topN').value;
   renderBars($('artists'), count(list,e=>e.artist), topN, true);
@@ -209,7 +207,15 @@ function renderBars(el,pairs,topN,linkArtist){
   if(!pairs.length)el.innerHTML='<p style="color:var(--muted)">Пусто 🙁</p>';
 }
 function renderMonths(list){
-  const m=count(list,e=>e.date.slice(0,7)).sort();
+  const per=new Map(count(list,e=>e.day.slice(0,7)));
+  // fill months without listens so gaps stay visible
+  const m=[];
+  if(per.size){
+    const keys=[...per.keys()].sort();
+    let [y,mo]=keys[0].split('-').map(Number);
+    for(let k=keys[0];k<=keys[keys.length-1];mo===12?(y++,mo=1):mo++,k=`${y}-${String(mo).padStart(2,'0')}`)
+      m.push([k,per.get(k)||0]);
+  }
   const el=$('months');el.innerHTML='';
   const max=m.length?Math.max(...m.map(x=>x[1])):1;
   const names=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
@@ -223,7 +229,7 @@ function renderMonths(list){
 
 function renderCalendar(list){
   const perDay=new Map();
-  for(const e of list) perDay.set(e.date,(perDay.get(e.date)||0)+1);
+  for(const e of list) perDay.set(e.day,(perDay.get(e.day)||0)+1);
   const el=$('calendar'); el.innerHTML='';
   el.className='calendar';
   if(!perDay.size){el.innerHTML='<p style="color:var(--muted)">Пусто</p>';return}
@@ -234,7 +240,7 @@ function renderCalendar(list){
   const lvl=c=>c===0?'':c<=Math.ceil(max*0.25)?'l1':c<=Math.ceil(max*0.5)?'l2':c<=Math.ceil(max*0.75)?'l3':'l4';
   const d=new Date(minD);
   while(d<=maxD){
-    const iso=d.toISOString().slice(0,10);
+    const iso=ymd(d);
     const c=perDay.get(iso)||0;
     const cell=document.createElement('div');
     cell.className='cell '+(c?lvl(c):'');
