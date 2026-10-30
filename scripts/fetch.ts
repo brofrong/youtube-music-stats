@@ -145,7 +145,13 @@ async function main() {
     files = await listTakeoutFiles(token);
   }
 
-  const latest = groupExports(files)[0];
+  const exports = groupExports(files);
+  console.error("Exports on Drive:");
+  for (const e of exports.slice(0, 10)) {
+    const mb = e.parts.reduce((s, p) => s + Number(p.size ?? 0), 0) / 1024 / 1024;
+    console.error(`  ${e.key}  ${e.parts.length} part(s)  ${mb.toFixed(1)} MB  created ${e.createdTime}`);
+  }
+  const latest = exports[0];
   if (!latest) {
     console.error("No takeout zip found in Drive. Files with 'takeout' in the name:");
     for (const f of files.slice(0, 20)) console.error(`  ${f.name}  [${f.mimeType}]  parents=${f.parents?.join(",")}`);
